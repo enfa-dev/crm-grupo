@@ -4,6 +4,7 @@ const db = new PGlite();
 const q = async (s, p) => { try { return await db.query(s, p); } catch (e) { console.log('ERR', s.slice(0,80), e.message); throw e; } };
 await db.exec(`
 create role anon; create role authenticated; create role service_role;
+create schema vault; create table vault.decrypted_secrets (id uuid primary key, decrypted_secret text);
 create schema auth;
 create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.sub', true),'')::uuid $$;
@@ -57,4 +58,46 @@ await as(dona, async () => {
     const r = await q(`select count(distinct empresa_id)::int n from ${t}`);
     check(`dona lê ${t} das 2 empresas`, r.rows[0].n === 2);
   }
+});
+
+// ---------------- Fase 2: pedidos, notas e expedição ----------------
+const exp = '00000000-0000-0000-0000-000000000004';
+await db.exec(`insert into auth.users values ('${exp}','e@x',null);
+insert into membros values ('${exp}','${halo}','expedicao');
+delete from empresa_cnaes; 
+insert into empresa_cnaes (empresa_id,codigo,operacao,principal) values ('${halo}','4772500','ambos',true),('${chay}','8630503','servico',true);
+insert into itens_catalogo (id,empresa_id,tipo,nome,preco_centavos,ncm) values ('20000000-0000-0000-0000-000000000001','${halo}','produto','Creme',5000,'33049910'),('20000000-0000-0000-0000-000000000003','${chay}','produto','Produto Chay',1000,'33049910');
+insert into itens_catalogo (id,empresa_id,tipo,nome,preco_centavos,codigo_servico) values ('20000000-0000-0000-0000-000000000002','${halo}','servico','Consultoria',20000,'17.01');`);
+const fails = async (sql) => { try { await db.query(sql); return false; } catch { return true; } };
+let pedido;
+await as(ges, async () => {
+  pedido = (await q(`insert into pedidos (empresa_id) values ('${halo}') returning id`)).rows[0].id;
+  await q(`insert into pedido_itens (pedido_id,item_id,quantidade,descricao,preco_unit_centavos,empresa_id,tipo) values ('${pedido}','20000000-0000-0000-0000-000000000001',2,'',null,'${halo}','produto')`.replace(",null,", ",5000,"));
+  await q(`insert into pedido_itens (pedido_id,item_id,quantidade,descricao,preco_unit_centavos,empresa_id,tipo) values ('${pedido}','20000000-0000-0000-0000-000000000002',1,'',20000,'${halo}','servico')`);
+  check('total do pedido somado', (await q(`select total_centavos::int t from pedidos where id='${pedido}'`)).rows[0].t === 30000);
+  check('item de outra empresa bloqueado', await fails(`insert into pedido_itens (pedido_id,item_id,quantidade,descricao,preco_unit_centavos,empresa_id,tipo) values ('${pedido}','20000000-0000-0000-0000-000000000003',1,'',1,'${halo}','produto')`));
+  check('não fatura pelo update direto', await fails(`update pedidos set status='faturado' where id='${pedido}'`));
+  check('navegador não grava nota', await fails(`insert into notas_fiscais (empresa_id,pedido_id,tipo) values ('${halo}','${pedido}','nfe')`));
+  const n = (await q(`select faturar_pedido('${pedido}') n`)).rows[0].n;
+  check('faturar gera NF-e e NFS-e', n === 2 && (await q(`select string_agg(tipo::text, ',' order by tipo) t from notas_fiscais where pedido_id='${pedido}'`)).rows[0].t === 'nfse,nfe');
+  check('refaturar não duplica', (await q(`select faturar_pedido('${pedido}') n`)).rows[0].n === 0 && (await q(`select count(*)::int c from notas_fiscais where pedido_id='${pedido}'`)).rows[0].c === 2);
+  check('pedido com produto abre expedição', (await q(`select count(*)::int c from expedicoes where pedido_id='${pedido}'`)).rows[0].c === 1);
+  check('pedido faturado não aceita itens', await fails(`insert into pedido_itens (pedido_id,item_id,quantidade,descricao,preco_unit_centavos,empresa_id,tipo) values ('${pedido}','20000000-0000-0000-0000-000000000001',1,'',1,'${halo}','produto')`));
+});
+await as(dona, async () => {
+  const p2 = (await q(`insert into pedidos (empresa_id) values ('${chay}') returning id`)).rows[0].id;
+  check('Chay (só serviço) não vende produto', await fails(`insert into pedido_itens (pedido_id,item_id,quantidade,descricao,preco_unit_centavos,empresa_id,tipo) values ('${p2}','20000000-0000-0000-0000-000000000003',1,'',1,'${chay}','produto')`));
+  check('dona vê notas e expedições da Halo', (await q(`select count(*)::int c from notas_fiscais`)).rows[0].c === 2);
+});
+await as(exp, async () => {
+  check('expedição vê a fila', (await q(`select count(*)::int c from expedicoes`)).rows[0].c === 1);
+  check('expedição não vê notas', (await q(`select count(*)::int c from notas_fiscais`)).rows[0].c === 0);
+  await q(`update expedicoes set status='enviado', codigo_rastreio='BR123' where pedido_id='${pedido}'`);
+  check('expedição marca como enviado', (await q(`select status from expedicoes where pedido_id='${pedido}'`)).rows[0].status === 'enviado');
+});
+const ven2 = '00000000-0000-0000-0000-000000000005';
+await db.exec(`insert into auth.users values ('${ven2}','v2@x',null); insert into membros values ('${ven2}','${chay}','vendas');`);
+await as(ven2, async () => {
+  check('vendas da Chay não fatura pedido da Halo', await fails(`select faturar_pedido('${pedido}')`));
+  check('vendas da Chay não vê notas da Halo', (await q(`select count(*)::int c from notas_fiscais where empresa_id='${halo}'`)).rows[0].c === 0);
 });

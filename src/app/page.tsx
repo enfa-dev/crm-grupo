@@ -13,6 +13,9 @@ type Resumo = {
   oportunidades_abertas: number;
   funil_centavos: number;
   homologacoes_a_vencer: number;
+  faturado_mes_centavos: number;
+  a_despachar: number;
+  notas_pendentes: number;
 };
 
 export default async function Painel() {
@@ -36,12 +39,14 @@ export default async function Painel() {
 
         {error && <p className="text-red-600">Não foi possível carregar: {error.message}</p>}
 
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Indicador titulo="Empresas" valor={String(empresas.length)} />
-          <Indicador titulo="Clientes" valor={String(total("clientes"))} />
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <Indicador titulo="Faturado no mês" valor={reais(total("faturado_mes_centavos"))} />
           <Indicador titulo="Funil aberto" valor={reais(total("funil_centavos"))} />
-          <Indicador titulo="Homologações a vencer (30 dias)" valor={String(total("homologacoes_a_vencer"))} alerta={total("homologacoes_a_vencer") > 0} />
-        </section>
+          <Indicador titulo="Pedidos a despachar" valor={String(total("a_despachar"))} href="/expedicao" alerta={total("a_despachar") > 0} />
+          <Indicador titulo="Notas pendentes" valor={String(total("notas_pendentes"))} href="/notas" alerta={total("notas_pendentes") > 0} />
+          <Indicador titulo="Empresas" valor={String(empresas.length)} />
+          <Indicador titulo="Homologações a vencer" valor={String(total("homologacoes_a_vencer"))} alerta={total("homologacoes_a_vencer") > 0} />
+                  </section>
 
         <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {empresas.map((e) => (
@@ -49,6 +54,9 @@ export default async function Painel() {
               <h2 className="font-semibold">{e.nome_fantasia}</h2>
               <p className="text-sm text-slate-500">{cnpjFormatado(e.cnpj)} · {regimes[e.regime]}</p>
               <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                <div><dt className="text-slate-500">Faturado no mês</dt><dd className="font-medium">{reais(e.faturado_mes_centavos)}</dd></div>
+                <div><dt className="text-slate-500">A despachar</dt><dd className="font-medium">{e.a_despachar}</dd></div>
+                <div><dt className="text-slate-500">Notas pendentes</dt><dd className="font-medium">{e.notas_pendentes}</dd></div>
                 <div><dt className="text-slate-500">Clientes</dt><dd className="font-medium">{e.clientes}</dd></div>
                 <div><dt className="text-slate-500">Oportunidades</dt><dd className="font-medium">{e.oportunidades_abertas}</dd></div>
                 <div><dt className="text-slate-500">Funil</dt><dd className="font-medium">{reais(e.funil_centavos)}</dd></div>
@@ -64,11 +72,12 @@ export default async function Painel() {
   );
 }
 
-function Indicador({ titulo, valor, alerta }: { titulo: string; valor: string; alerta?: boolean }) {
-  return (
-    <div className={`rounded-xl border bg-white p-4 ${alerta ? "border-amber-400" : "border-slate-200"}`}>
+function Indicador({ titulo, valor, alerta, href }: { titulo: string; valor: string; alerta?: boolean; href?: string }) {
+  const conteudo = (
+    <div className={`h-full rounded-xl border bg-white p-4 ${alerta ? "border-amber-400" : "border-slate-200"}`}>
       <p className="text-sm text-slate-500">{titulo}</p>
       <p className="mt-1 text-xl font-semibold">{valor}</p>
     </div>
   );
+  return href ? <Link href={href}>{conteudo}</Link> : conteudo;
 }

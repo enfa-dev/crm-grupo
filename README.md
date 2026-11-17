@@ -15,6 +15,19 @@ Plano completo: https://claude.ai/artifact/RyAqZGLcNu1zVYx7CkTBHS
 - Banco: `supabase/migrations/` com empresas, CNAEs, configuração fiscal, membros e papéis,
   clientes, oportunidades, catálogo e homologações, todas com RLS por empresa
 
+## Fase 2
+
+- Catálogo por empresa (serviço com código LC 116 e ISS; produto com NCM e CFOP)
+- Clientes e pedidos; o banco bloqueia item de outra empresa ou de operação que nenhum CNAE da empresa libera
+- "Faturar" gera uma nota por tipo (NFS-e para serviço, NF-e ou NFC-e para produto), sem duplicar, e abre a expedição quando há produto
+- Fila de expedição (a separar, separado, enviado, entregue, com rastreio) e lista de notas
+- Emissor: Edge Functions `emitir-notas` e `webhook-fiscal` com adaptador Focus NFe. Só envia quando a empresa
+  tem `empresa_fiscal.provedor = 'focus'` e o token no Supabase Vault; começa em homologação (teste).
+  Os campos fiscais devem ser validados com a contabilidade antes de ir para produção.
+
+Para ligar o emissor: `supabase functions deploy emitir-notas webhook-fiscal`, definir os segredos
+`EMISSOR_SEGREDO` e `WEBHOOK_FISCAL_SEGREDO`, e agendar `emitir-notas` (pg_cron) a cada minuto.
+
 ## Papéis
 
 | Papel | Alcance |
