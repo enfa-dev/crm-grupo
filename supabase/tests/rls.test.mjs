@@ -9,7 +9,7 @@ create table auth.users (id uuid primary key, email text, raw_user_meta_data jso
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.sub', true),'')::uuid $$;
 grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;
 `);
-try { await db.exec(fs.readFileSync(new URL('../migrations/20261117170000_fase1_base_multiempresa.sql', import.meta.url), 'utf8')); } catch (e) { console.log('MIGRATION ERR', e.message, e.position); process.exit(1); }
+try { for (const f of fs.readdirSync(new URL('../migrations/', import.meta.url)).sort()) await db.exec(fs.readFileSync(new URL('../migrations/' + f, import.meta.url), 'utf8')); } catch (e) { console.log('MIGRATION ERR', e.message, e.position); process.exit(1); }
 await db.exec(`grant usage on schema public to authenticated; grant all on all tables in schema public to authenticated;`);
 const dona='00000000-0000-0000-0000-000000000001', ges='00000000-0000-0000-0000-000000000002', ven='00000000-0000-0000-0000-000000000003';
 await db.exec(`insert into auth.users values ('${dona}','paula@x',null),('${ges}','g@x','{"nome":"Gestor Halo"}'),('${ven}','v@x',null);
