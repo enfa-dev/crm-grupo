@@ -21,3 +21,6 @@ export const etapas: Record<string, string> = {
 };
 
 export const operacoes: Record<string, string> = { servico: "Serviço", produto: "Produto", ambos: "Serviço e produto" };
+
+export const reaisParaCentavos = (v: FormDataEntryValue | null) =>
+  Math.round(Number(String(v ?? "0").replace(/\./g, "").replace(",", ".")) * 100) || 0;

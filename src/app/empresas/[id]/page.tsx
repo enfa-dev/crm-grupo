@@ -34,6 +34,12 @@ export default async function Empresa({ params }: { params: Promise<{ id: string
           </p>
         </div>
 
+        <nav className="flex flex-wrap gap-2 text-sm">
+          {[["pedidos", "Pedidos"], ["clientes", "Clientes"], ["catalogo", "Catálogo"]].map(([rota, nome]) => (
+            <Link key={rota} href={`/empresas/${id}/${rota}`} className="rounded-md border border-slate-300 bg-white px-3 py-1 hover:border-slate-500">{nome}</Link>
+          ))}
+        </nav>
+
         <div className="grid gap-6 lg:grid-cols-2">
           <Bloco titulo="CNAEs">
             <ul className="divide-y divide-slate-100">
