@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CRM do Grupo
 
-## Getting Started
+Sistema central das empresas do grupo: cada empresa opera de forma independente
+(dados isolados por Row Level Security no Supabase) e a dona do grupo vê o
+consolidado de todas.
 
-First, run the development server:
+Plano completo: https://claude.ai/artifact/RyAqZGLcNu1zVYx7CkTBHS
+
+## Fase 1 (este esqueleto)
+
+- Login (Supabase Auth, e-mail e senha)
+- Painel do grupo: empresas, clientes, funil aberto, homologações a vencer
+- Cadastro de empresa com CNPJ, regime (Simples Nacional, anexo), município e CNAE principal
+- Página da empresa: CNAEs (serviço/produto), funil de vendas, homologações
+- Banco: `supabase/migrations/` com empresas, CNAEs, configuração fiscal, membros e papéis,
+  clientes, oportunidades, catálogo e homologações, todas com RLS por empresa
+
+## Papéis
+
+| Papel | Alcance |
+| --- | --- |
+| Dona do grupo (`perfis.dona_grupo`) | Todas as empresas |
+| gestor | Tudo da sua empresa, inclusive convidar membros |
+| financeiro | Financeiro e fiscal da empresa |
+| vendas | CRM e pedidos |
+| expedicao | Fila de despacho |
+| marketing | Prospecção e campanhas |
+
+## Rodar localmente
 
 ```bash
+cp .env.example .env.local   # preencha com a URL e a chave publicável do projeto Supabase
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Aplicar o banco: `supabase db push` (Supabase CLI) ou rode o SQL de
+`supabase/migrations/` no editor SQL do projeto. Depois do primeiro cadastro,
+marque a dona do grupo:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sql
+update perfis set dona_grupo = true where email = 'SEU-EMAIL';
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Testes de acesso
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`npm run test:rls` aplica a migração num Postgres embutido e confere que cada
+papel só enxerga a própria empresa.
