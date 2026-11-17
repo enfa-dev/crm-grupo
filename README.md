@@ -35,14 +35,12 @@ npm run dev
 ```
 
 Aplicar o banco: `supabase db push` (Supabase CLI) ou rode o SQL de
-`supabase/migrations/` no editor SQL do projeto. Depois do primeiro cadastro,
-marque a dona do grupo:
+`supabase/migrations/` no editor SQL do projeto.
 
-```sql
-update perfis set dona_grupo = true where email = 'SEU-EMAIL';
-```
+A **primeira conta criada** vira a dona do grupo, com acesso total a todas as
+empresas. As próximas contas só enxergam as empresas em que recebem um papel.
 
 ## Testes de acesso
 
 `npm run test:rls` aplica a migração num Postgres embutido e confere que cada
-papel só enxerga a própria empresa.
+papel só enxerga a própria empresa e que a dona do grupo lê e escreve em todas.
